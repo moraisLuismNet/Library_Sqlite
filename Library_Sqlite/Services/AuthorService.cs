@@ -2,7 +2,6 @@
 using Library.DTOs;
 using Library.Models;
 using Library.Repository;
-using Microsoft.EntityFrameworkCore;
 
 namespace Library.Services
 {
@@ -10,17 +9,14 @@ namespace Library.Services
     {
         private IAuthorRepository _authorRepository;
         private IMapper _mapper;
-        private LibraryContext _context;
         public List<string> Errors { get; }
 
         public AuthorService(IAuthorRepository authorRepository,
-            IMapper mapper,
-            LibraryContext context)
+            IMapper mapper)
         {
             _authorRepository = authorRepository;
             _mapper = mapper;
             Errors = new List<string>();
-            _context = context;
         }
 
         public async Task<IEnumerable<AuthorDTO>> Get()
@@ -35,8 +31,12 @@ namespace Library.Services
 
             if (author != null)
             {
-                var authorDTO = _mapper.Map<AuthorDTO>(author);
-                return authorDTO;
+                return new AuthorDTO
+                {
+                    IdAuthor = author.IdAuthor,
+                    NameAuthor = author.Name,
+                    TotalBooks = author.Books.Count
+                };
             }
 
             return null;
@@ -44,20 +44,7 @@ namespace Library.Services
 
         public async Task<IEnumerable<AuthorBookDTO>> GetAuthorsWithDetails()
         {
-            return await _context.Authors
-                .Include(a => a.Books)
-                .Select(a => new AuthorBookDTO
-                {
-                    IdAuthor = a.IdAuthor,
-                    Name = a.Name,
-                    TotalBooks = a.Books.Count,
-                    AveragePrices = a.Books.Any() ? a.Books.Average(l => l.Price) : 0,
-                    Books = a.Books.Select(l => new BookItemDTO
-                    {
-                        Title = l.Title
-                    }).ToList()
-                })
-                .ToListAsync();
+            return await _authorRepository.GetAuthorsWithDetails();
         }
 
         public async Task<AuthorBookDTO?> GetAuthorBooksSelect(int id)
@@ -65,30 +52,30 @@ namespace Library.Services
             return await _authorRepository.GetAuthorBooksSelect(id);
         }
 
-        public async Task<IEnumerable<Author>> GetAuthorsSortedByName(bool up)
+        public async Task<IEnumerable<AuthorInsertDTO>> GetAuthorsSortedByName(bool up)
         {
             return await _authorRepository.GetAuthorsSortedByName(up);
         }
 
-        public async Task<IEnumerable<Author>> GetAuthorsByNameContent(string text)
+        public async Task<IEnumerable<AuthorInsertDTO>> GetAuthorsByNameContent(string text)
         {
             return await _authorRepository.GetAuthorsByNameContent(text);
         }
 
-        public async Task<IEnumerable<Author>> GetAuthorsPaginated(int from, int until)
+        public async Task<IEnumerable<AuthorInsertDTO>> GetAuthorsPaginated(int start, int end)
         {
-            return await _authorRepository.GetAuthorsPaginated(from, until);
+            return await _authorRepository.GetAuthorsPaginated(start, end);
         }
-        public async Task<AuthorDTO> Add(AuthorInsertDTO authorInsertDTO)
+        public async Task<AuthorInsertDTO> Add(AuthorInsertDTO authorInsertDTO)
         {
             var author = _mapper.Map<Author>(authorInsertDTO);
 
-            await _authorRepository.Add(author);
+            await _authorRepository.Add(authorInsertDTO);
             await _authorRepository.Save();
 
             var authorDTO = _mapper.Map<AuthorDTO>(author);
 
-            return authorDTO;
+            return authorInsertDTO;
         }
         public async Task<AuthorDTO> Update(int id, AuthorUpdateDTO authorUpdateDTO)
         {
@@ -98,8 +85,7 @@ namespace Library.Services
             {
                 author = _mapper.Map<AuthorUpdateDTO, Author>(authorUpdateDTO, author);
 
-                _authorRepository.Update(author);
-                await _authorRepository.Save();
+                await _authorRepository.Update(authorUpdateDTO);
 
                 var authorDTO = _mapper.Map<AuthorDTO>(author);
 
@@ -125,7 +111,7 @@ namespace Library.Services
         }
         public bool Validate(AuthorInsertDTO authorInsertDTO)
         {
-            if (_authorRepository.Search(b => b.Name == authorInsertDTO.Name).Count() > 0)
+            if (_authorRepository.Search(b => b.Name == authorInsertDTO.NameAuthor).Count() > 0)
             {
                 Errors.Add("There is already an author with that name");
                 return false;
@@ -135,14 +121,13 @@ namespace Library.Services
 
         public bool Validate(AuthorUpdateDTO authorUpdateDTO)
         {
-            if (_authorRepository.Search(b => b.Name == authorUpdateDTO.Name && authorUpdateDTO.IdAuthor !=
+            if (_authorRepository.Search(b => b.Name == authorUpdateDTO.NameAuthor && authorUpdateDTO.IdAuthor !=
             b.IdAuthor).Count() > 0)
             {
                 Errors.Add("There is already an author with that name");
                 return false;
             }
             return true;
-
         }
 
     }

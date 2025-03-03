@@ -4,6 +4,7 @@ using Library.Services;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Library.Validators;
 
 namespace Library.Controllers
 {
@@ -27,15 +28,15 @@ namespace Library.Controllers
             _actionsService = actionsService;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<AuthorDTO>>> Get()
+        [HttpGet("withTotalBooks")]
+        public async Task<ActionResult> Get()
         {
-            await _actionsService.AddAction("Get authors", "Authors");
+            await _actionsService.AddAction("Get authors with total books", "Authors");
             var authors = await _authorService.Get();
             return Ok(authors);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<AuthorDTO>> GetById(int id)
         {
             await _actionsService.AddAction("Get author by Id", "Authors");
@@ -72,7 +73,7 @@ namespace Library.Controllers
         }
 
         [HttpGet("sortedName/{up}")]
-        public async Task<ActionResult<IEnumerable<Author>>> GetAuthorsSortedByName(bool up)
+        public async Task<ActionResult<IEnumerable<AuthorInsertDTO>>> GetAuthorsSortedByName(bool up)
         {
             await _actionsService.AddAction("Get authors sorted by name", "Authors");
             var authors = await _authorService.GetAuthorsSortedByName(up);
@@ -86,7 +87,7 @@ namespace Library.Controllers
         }
 
         [HttpGet("name/contain/{text}")]
-        public async Task<ActionResult<IEnumerable<Author>>> GetAuthorsByNameContain(string text)
+        public async Task<ActionResult<IEnumerable<AuthorInsertDTO>>> GetAuthorsByNameContain(string text)
         {
             await _actionsService.AddAction("Get authors with the name it contains", "Authors");
             if (string.IsNullOrEmpty(text))
@@ -105,7 +106,7 @@ namespace Library.Controllers
         }
 
         [HttpGet("pagination/{from}/{until}")]
-        public async Task<ActionResult<IEnumerable<Author>>> GetAuthorsPaginated(int from, int until)
+        public async Task<ActionResult<IEnumerable<AuthorInsertDTO>>> GetAuthorsPaginated(int from, int until)
         {
             await _actionsService.AddAction("Get authors paginated", "Authors");
             if (from < until)
@@ -119,48 +120,50 @@ namespace Library.Controllers
 
         [Authorize]
         [HttpPost]
-        public async Task<ActionResult<AuthorDTO>> Add(AuthorInsertDTO authorInsertDTO)
+        public async Task<ActionResult<AuthorInsertDTO>> Add([FromBody] AuthorInsertDTO author)
         {
-            var validationResult = await _authorInsertValidator.ValidateAsync(authorInsertDTO);
+            await _actionsService.AddAction("Add author", "Authors");
+            var validationResult = await _authorInsertValidator.ValidateAsync(author);
             if (!validationResult.IsValid)
-            {
-                return BadRequest(validationResult.Errors);
-            }
+                return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
 
-            if (!_authorService.Validate(authorInsertDTO))
-            {
-                return BadRequest(_authorService.Errors);
-            }
-
-            var authorDTO = await _authorService.Add(authorInsertDTO);
-
-            return CreatedAtAction(nameof(GetById), new { id = authorDTO.IdAuthor }, authorDTO);
+            var newAuthor = await _authorService.Add(author);
+            return CreatedAtAction(nameof(Get), new { id = newAuthor.NameAuthor }, newAuthor);
         }
 
         [Authorize]
-        [HttpPut("{id:int}")]
-        public async Task<ActionResult<AuthorDTO>> Update(int id, AuthorUpdateDTO authorUpdateDTO)
+        [HttpPut("{idAuthor:int}")]
+        public async Task<IActionResult> Update(int idAuthor, [FromBody] AuthorUpdateDTO author)
         {
-            var validationResult = await _authorUpdateValidator.ValidateAsync(authorUpdateDTO);
+            await _actionsService.AddAction("Update author", "Authors");
+            var validationResult = await _authorUpdateValidator.ValidateAsync(author);
             if (!validationResult.IsValid)
+                return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
+            if (!ModelState.IsValid)
             {
-                return BadRequest(validationResult.Errors);
+                return BadRequest(ModelState);
             }
 
-            if (!_authorService.Validate(authorUpdateDTO))
+            if (idAuthor != author.IdAuthor)
             {
-                return BadRequest(_authorService.Errors);
+                return BadRequest(new { message = "The route ID does not match the body ID" });
             }
 
-            var authorDTO = await _authorService.Update(id, authorUpdateDTO);
+            var authorUpdated = await _authorService.Update(idAuthor, author);
 
-            return authorDTO == null ? NotFound() : Ok(authorDTO);
+            if (authorUpdated != null)
+            {
+                return Ok(new { message = "The author has been successfully updated" });
+            }
+
+            return NotFound(new { message = "The author was not found" });
         }
 
         [Authorize]
         [HttpDelete("{id:int}")]
         public async Task<ActionResult<AuthorDTO>> Delete(int id)
         {
+            await _actionsService.AddAction("Delete author", "Authors");
             var authorDTO = await _authorService.Delete(id);
             return authorDTO == null ? NotFound($"Author with ID {id} not found") : Ok(authorDTO);
         }

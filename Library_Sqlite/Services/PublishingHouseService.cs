@@ -17,7 +17,6 @@ namespace Library.Services
             _publishingHouseRepository = publishingHouseRepository;
             _mapper = mapper;
             Errors = new List<string>();
-
         }
 
         public async Task<IEnumerable<PublishingHouseDTO>> Get()
@@ -32,43 +31,46 @@ namespace Library.Services
 
             if (publishingHouse != null)
             {
-                var publishingHouseDTO = _mapper.Map<PublishingHouseDTO>(publishingHouse);
-                return publishingHouseDTO;
+                return new PublishingHouseDTO
+                {
+                    IdPublishingHouse = publishingHouse.IdPublishingHouse,
+                    NamePublishingHouse = publishingHouse.Name,
+                    TotalBooks = publishingHouse.Books.Count
+                };
             }
 
             return null;
         }
 
-        public async Task<PublishingHouseBookDTO?> GetPublishingHousesBooksEager(int id)
+        public async Task<PublishingHouseBookDTO?> GetPublishingHouseBooksSelect(int id)
         {
-            var publishingHouse = await _publishingHouseRepository.GetPublishingHousesBooksEager(id);
-            return publishingHouse;
+            return await _publishingHouseRepository.GetPublishingHouseBooksSelect(id);
         }
 
-        public async Task<IEnumerable<PublishingHouse>> GetPublishingHousesSortedByName(bool up)
+        public async Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesSortedByName(bool up)
         {
             return await _publishingHouseRepository.GetPublishingHousesSortedByName(up);
         }
 
-        public async Task<IEnumerable<PublishingHouse>> GetPublishingHousesByNameContent(string text)
+        public async Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesByNameContent(string text)
         {
             return await _publishingHouseRepository.GetPublishingHousesByNameContent(text);
         }
 
-        public async Task<IEnumerable<PublishingHouse>> GetPublishingHousesPaginated(int from, int until)
+        public async Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesPaginated(int start, int end)
         {
-            return await _publishingHouseRepository.GetPublishingHousesPaginated(from, until);
+            return await _publishingHouseRepository.GetPublishingHousesPaginated(start, end);
         }
-        public async Task<PublishingHouseDTO> Add(PublishingHouseInsertDTO publishingHouseInsertDTO)
+        public async Task<PublishingHouseInsertDTO> Add(PublishingHouseInsertDTO publishingHouseInsertDTO)
         {
             var publishingHouse = _mapper.Map<PublishingHouse>(publishingHouseInsertDTO);
 
-            await _publishingHouseRepository.Add(publishingHouse);
+            await _publishingHouseRepository.Add(publishingHouseInsertDTO);
             await _publishingHouseRepository.Save();
 
             var publishingHouseDTO = _mapper.Map<PublishingHouseDTO>(publishingHouse);
 
-            return publishingHouseDTO;
+            return publishingHouseInsertDTO;
         }
         public async Task<PublishingHouseDTO> Update(int id, PublishingHouseUpdateDTO publishingHouseUpdateDTO)
         {
@@ -78,8 +80,7 @@ namespace Library.Services
             {
                 publishingHouse = _mapper.Map<PublishingHouseUpdateDTO, PublishingHouse>(publishingHouseUpdateDTO, publishingHouse);
 
-                _publishingHouseRepository.Update(publishingHouse);
-                await _publishingHouseRepository.Save();
+                await _publishingHouseRepository.Update(publishingHouseUpdateDTO);
 
                 var publishingHouseDTO = _mapper.Map<PublishingHouseDTO>(publishingHouse);
 
@@ -105,7 +106,7 @@ namespace Library.Services
         }
         public bool Validate(PublishingHouseInsertDTO publishingHouseInsertDTO)
         {
-            if (_publishingHouseRepository.Search(b => b.Name == publishingHouseInsertDTO.Name).Count() > 0)
+            if (_publishingHouseRepository.Search(b => b.Name == publishingHouseInsertDTO.NamePublishingHouse).Count() > 0)
             {
                 Errors.Add("There is already a publishing house with that name");
                 return false;
@@ -115,7 +116,7 @@ namespace Library.Services
 
         public bool Validate(PublishingHouseUpdateDTO publishingHouseUpdateDTO)
         {
-            if (_publishingHouseRepository.Search(b => b.Name == publishingHouseUpdateDTO.Name && publishingHouseUpdateDTO.IdPublishingHouse !=
+            if (_publishingHouseRepository.Search(b => b.Name == publishingHouseUpdateDTO.NamePublishingHouse && publishingHouseUpdateDTO.IdPublishingHouse !=
             b.IdPublishingHouse).Count() > 0)
             {
                 Errors.Add("There is already a publishing house with that name");

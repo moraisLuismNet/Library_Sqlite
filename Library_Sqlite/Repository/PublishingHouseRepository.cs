@@ -13,51 +13,73 @@ namespace Library.Repository
             _context = context;
         }
 
-        public async Task<IEnumerable<PublishingHouse>> Get() =>
-            await _context.PublishingHouses.ToListAsync();
-
-        public async Task<PublishingHouse> GetById(int id) =>
-            await _context.PublishingHouses.FindAsync(id);
-
-        public async Task<PublishingHouseBookDTO?> GetPublishingHousesBooksEager(int id)
+        public async Task<IEnumerable<PublishingHouseDTO>> Get()
         {
-            var publishingHouse = await _context.PublishingHouses
-                .Include(e => e.Books)
-                .Where(e => e.IdPublishingHouse == id)
-                .Select(e => new PublishingHouseBookDTO
-                {
-                    IdPublishingHouse = e.IdPublishingHouse,
-                    Name = e.Name,
-                    Books = e.Books.Select(l => new BookItemDTO
-                    {
-                        Title = l.Title
-                    }).ToList()
-                })
-                .FirstOrDefaultAsync();
-
-            return publishingHouse;
+            var publishingHouses = await (from x in _context.PublishingHouses
+                                          select new PublishingHouseDTO
+                                          {
+                                            IdPublishingHouse = x.IdPublishingHouse,
+                                            NamePublishingHouse = x.Name,
+                                            TotalBooks = x.Books.Count()
+                                          }).ToListAsync();
+            return publishingHouses;
         }
 
-        public async Task<IEnumerable<PublishingHouse>> GetPublishingHousesSortedByName(bool up)
+        public async Task<PublishingHouse> GetById(int id)
+        {
+            return await _context.PublishingHouses
+                .Include(a => a.Books)
+                .FirstOrDefaultAsync(a => a.IdPublishingHouse == id);
+        }
+
+        public async Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesSortedByName(bool up)
         {
             if (up)
             {
-                return await _context.PublishingHouses.OrderBy(x => x.Name).ToListAsync();
+                return await _context.PublishingHouses
+                    .OrderBy(x => x.Name)
+                    .Select(a => new PublishingHouseInsertDTO { NamePublishingHouse = a.Name })
+                    .ToListAsync();
             }
+
             else
             {
-                return await _context.PublishingHouses.OrderByDescending(x => x.Name).ToListAsync();
+                return await _context.PublishingHouses
+                    .OrderByDescending(x => x.Name)
+                    .Select(a => new PublishingHouseInsertDTO { NamePublishingHouse = a.Name })
+                    .ToListAsync();
+
             }
         }
 
-        public async Task<IEnumerable<PublishingHouse>> GetPublishingHousesByNameContent(string text)
+        public async Task<PublishingHouseBookDTO?> GetPublishingHouseBooksSelect(int id)
+        {
+            return await _context.PublishingHouses
+                .Where(x => x.IdPublishingHouse == id)
+                .Select(x => new PublishingHouseBookDTO
+                {
+                    IdPublishingHouse = x.IdPublishingHouse,
+                    NamePublishingHouse = x.Name,
+                    TotalBooks = x.Books.Count(),
+                    Books = x.Books.Select(y => new BookItemDTO
+                    {
+                        IdBook = y.IdBook,
+                        Title = y.Title,
+                        Price = y.Price
+                    }).ToList(),
+                })
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesByNameContent(string text)
         {
             return await _context.PublishingHouses
                                  .Where(x => x.Name.Contains(text))
+                                 .Select(a => new PublishingHouseInsertDTO { NamePublishingHouse = a.Name })
                                  .ToListAsync();
         }
 
-        public async Task<IEnumerable<PublishingHouse>> GetPublishingHousesPaginated(int from, int until)
+        public async Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesPaginated(int from, int until)
         {
             if (from < until)
             {
@@ -67,15 +89,36 @@ namespace Library.Repository
             return await _context.PublishingHouses
                 .Skip(from - 1)
                 .Take(until - from + 1)
+                .Select(a => new PublishingHouseInsertDTO { NamePublishingHouse = a.Name })
                 .ToListAsync();
         }
-        public async Task Add(PublishingHouse publishingHouse) =>
-            await _context.PublishingHouses.AddAsync(publishingHouse);
 
-        public void Update(PublishingHouse publishingHouse)
+        public async Task Add(PublishingHouseInsertDTO publishingHouseInsertDTO)
         {
-            _context.PublishingHouses.Attach(publishingHouse);
-            _context.Entry(publishingHouse).State = EntityState.Modified;
+            var publishingHouse = new PublishingHouse
+            {
+                Name = publishingHouseInsertDTO.NamePublishingHouse
+            };
+
+            _context.PublishingHouses.Add(publishingHouse);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task Update(PublishingHouseUpdateDTO publishingHouseUpdateDTO)
+        {
+            var publishingHouse = await _context.PublishingHouses
+                 .AsTracking()
+                 .FirstOrDefaultAsync(e => e.IdPublishingHouse == publishingHouseUpdateDTO.IdPublishingHouse);
+
+            if (publishingHouse != null)
+            {
+                publishingHouse.Name = publishingHouseUpdateDTO.NamePublishingHouse;
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                throw new Exception("Publishing House not found");
+            }
         }
 
         public void Delete(PublishingHouse publishingHouse) =>
@@ -87,14 +130,9 @@ namespace Library.Repository
         public IEnumerable<PublishingHouse> Search(Func<PublishingHouse, bool> filter) =>
         _context.PublishingHouses.Where(filter).ToList();
 
-        public async Task<IEnumerable<PublishingHouse>> GetAuthoresWithDetails()
+        public async Task<IEnumerable<PublishingHouse>> GetAuthorsWithDetails()
         {
             return await _context.PublishingHouses.Include(e => e.Books).ToListAsync();
-        }
-
-        Task<bool> IPublishingHouseRepository.PublishingHouseExists(int publishingHouseId)
-        {
-            throw new NotImplementedException();
         }
 
     }

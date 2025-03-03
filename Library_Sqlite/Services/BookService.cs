@@ -10,16 +10,14 @@ namespace Library.Services
     {
         private IBookRepository _bookRepository;
         private IMapper _mapper;
-        private readonly IManagerFiles _fileManager;
         public List<string> Errors { get; }
 
         public BookService(IBookRepository bookRepository,
-            IMapper mapper, IManagerFiles fileManager)
+            IMapper mapper)
         {
             _bookRepository = bookRepository;
             _mapper = mapper;
             Errors = new List<string>();
-            _fileManager = fileManager;
         }
 
         public async Task<IEnumerable<BookDTO>> Get()
@@ -51,22 +49,22 @@ namespace Library.Services
             return await _bookRepository.GetBooksGroupedByDiscontinued();
         }
 
-        public async Task<IEnumerable<Book>> GetBooksPaginated(int from, int until)
+        public async Task<IEnumerable<BookDTO>> GetBooksPaginated(int start, int end)
         {
-            return await _bookRepository.GetBooksPaginated(from, until);
+            return await _bookRepository.GetBooksPaginated(start, end);
         }
 
-        public async Task<IEnumerable<Book>> GetBooksByPrice(decimal priceMin, decimal priceMax)
+        public async Task<IEnumerable<BookDTO>> GetBooksByPrice(decimal priceMin, decimal priceMax)
         {
             return await _bookRepository.GetBooksByPrice(priceMin, priceMax);
         }
 
-        public async Task<IEnumerable<Book>> GetBooksSortedByTitle(bool up)
+        public async Task<IEnumerable<BookDTO>> GetBooksSortedByTitle(bool up)
         {
             return await _bookRepository.GetBooksSortedByTitle(up);
         }
 
-        public async Task<IEnumerable<Book>> GetBooksByTitleContent(string text)
+        public async Task<IEnumerable<BookDTO>> GetBooksByTitleContent(string text)
         {
             return await _bookRepository.GetBooksByTitleContent(text);
         }
@@ -74,22 +72,10 @@ namespace Library.Services
         public async Task<BookDTO> Add(BookInsertDTO bookInsertDTO)
         {
             var book = _mapper.Map<Book>(bookInsertDTO);
-
-            if (bookInsertDTO.Photo != null)
-            {
-                using (var memoryStream = new MemoryStream())
-                {
-                    await bookInsertDTO.Photo.CopyToAsync(memoryStream);
-                    var content = memoryStream.ToArray();
-                    var extension = Path.GetExtension(bookInsertDTO.Photo.FileName);
-                    book.PhotoCover = await _fileManager.SaveFile(content, extension, "img", bookInsertDTO.Photo.ContentType);
-                }
-            }
-
-            await _bookRepository.Add(book);
+            await _bookRepository.Add(bookInsertDTO);
             await _bookRepository.Save();
-
-            return _mapper.Map<BookDTO>(book);
+            var bookDTO = _mapper.Map<BookDTO>(book);
+            return bookDTO;
         }
 
         public async Task<BookDTO> Update(int id, BookUpdateDTO bookUpdateDTO)
@@ -110,28 +96,12 @@ namespace Library.Services
                 return null;
             }
 
-            book.Title = bookUpdateDTO.Title;
-            book.Pages = bookUpdateDTO.Pages;
-            book.Price = bookUpdateDTO.Price;
-            book.Discontinued = bookUpdateDTO.Discontinued;
-            book.AuthorId = bookUpdateDTO.AuthorId;
-            book.PublishingHouseId = bookUpdateDTO.PublishingHouseId;
-
-            if (bookUpdateDTO.Photo != null)
-            {
-                await UpdatePhotoCover(book, bookUpdateDTO.Photo);
-
-            }
-            else if (!string.IsNullOrEmpty(book.PhotoCover))
-            {
-                await _fileManager.DeleteFile(book.PhotoCover, "img");
-                book.PhotoCover = null;
-            }
-
             try
             {
-                _bookRepository.Update(book);
+                await _bookRepository.Update(bookUpdateDTO);
                 await _bookRepository.Save();
+                book = await _bookRepository.GetById(id);
+                return _mapper.Map<BookDTO>(book);
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -142,7 +112,6 @@ namespace Library.Services
                 }
                 throw;
             }
-            return _mapper.Map<BookDTO>(book);
         }
 
         public bool Validate(BookUpdateDTO bookUpdateDTO)
@@ -155,30 +124,9 @@ namespace Library.Services
             return true;
         }
 
-        private async Task UpdatePhotoCover(Book book, IFormFile photo)
-        {
-            if (!string.IsNullOrEmpty(book.PhotoCover))
-            {
-                await _fileManager.DeleteFile(book.PhotoCover, "img");
-            }
-
-            using (var memoryStream = new MemoryStream())
-            {
-                await photo.CopyToAsync(memoryStream);
-                var content = memoryStream.ToArray();
-                var extension = Path.GetExtension(photo.FileName);
-                book.PhotoCover = await _fileManager.SaveFile(content, extension, "img", photo.ContentType);
-            }
-        }
-
         public async Task<Book> GetBookById(int id)
         {
             return await _bookRepository.GetBookById(id);
-        }
-
-        public async Task DeleteBook(Book book)
-        {
-            await _bookRepository.DeleteBook(book);
         }
 
         public bool Validate(BookInsertDTO bookInsertDTO)
@@ -198,8 +146,6 @@ namespace Library.Services
             {
                 return null;
             }
-
-            await _fileManager.DeleteFile(book.PhotoCover, "img");
 
             await _bookRepository.DeleteBook(book);
 

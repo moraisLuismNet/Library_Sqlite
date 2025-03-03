@@ -1,23 +1,63 @@
 ﻿using Library.DTOs;
 using Library.Models;
+using Library.Services;
 using Microsoft.EntityFrameworkCore;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Library.Repository
 {
     public class BookRepository : IBaseRepository<Book>, IBookRepository
     {
         private LibraryContext _context;
+        private readonly IManagerFiles _managerFiles;
 
-        public BookRepository(LibraryContext context)
+        public BookRepository(LibraryContext context,IManagerFiles managerFiles)
         {
             _context = context;
+            _managerFiles = managerFiles;
         }
 
-        public async Task<IEnumerable<Book>> Get() =>
-            await _context.Books.ToListAsync();
+        public async Task<IEnumerable<BookDTO>> Get()
+        {
+            var books = await (from x in _context.Books
+                                select new BookDTO
+                                {
+                                    Isbn = x.IdBook,
+                                    Title = x.Title,
+                                    Pages = x.Pages,
+                                    Price = x.Price,
+                                    PhotoCover = x.PhotoCover,
+                                    Discontinued = x.Discontinued,
+                                    NameAuthor = x.Author.Name,
+                                    NamePublishingHouse = x.PublishingHouse.Name
+                                }).ToListAsync();
+            return books;
+        }
 
-        public async Task<Book> GetById(int id) =>
-            await _context.Books.FindAsync(id);
+        public async Task<BookDTO?> GetById(int id)
+        {
+            var book = await _context.Books
+                .Include(l => l.Author)
+                .Include(l => l.PublishingHouse)
+                .FirstOrDefaultAsync(l => l.IdBook == id);
+
+            if (book == null)
+            {
+                return null;
+            }
+
+            return new BookDTO
+            {
+                Isbn = book.IdBook,
+                Title = book.Title,
+                Pages = book.Pages,
+                Price = book.Price,
+                PhotoCover = book.PhotoCover,
+                Discontinued = book.Discontinued,
+                NameAuthor = book.Author.Name,
+                NamePublishingHouse = book.PublishingHouse.Name
+            };
+        }
 
         public async Task<IEnumerable<BookSaleDTO>> GetBooksAndPrices()
         {
@@ -29,6 +69,7 @@ namespace Library.Repository
                 })
                 .ToListAsync();
         }
+
         public async Task<IEnumerable<BookGroupDTO>> GetBooksGroupedByDiscontinued()
         {
             return await _context.Books
@@ -40,54 +81,175 @@ namespace Library.Repository
                 })
                 .ToListAsync();
         }
-        public async Task<IEnumerable<Book>> GetBooksPaginated(int from, int until)
+
+        public async Task<IEnumerable<BookDTO>> GetBooksPaginated(int start, int end)
         {
-            if (from < until)
+            if (end < start)
             {
                 throw new ArgumentException("The maximum cannot be less than the minimum");
             }
 
-            return await _context.Books
-                .Skip(from - 1)
-                .Take(until - from + 1)
+            var books = await (from x in _context.Books
+                .Skip(start - 1)
+                .Take(end - start + 1)
+                select new BookDTO
+                {
+                    Isbn = x.IdBook,
+                    Title = x.Title,
+                    Pages = x.Pages,
+                    Price = x.Price,
+                    PhotoCover = x.PhotoCover,
+                    Discontinued = x.Discontinued,
+                    NameAuthor = x.Author.Name,
+                    NamePublishingHouse = x.PublishingHouse.Name
+                })
                 .ToListAsync();
+            return books;
         }
-        public async Task<IEnumerable<Book>> GetBooksByPrice(decimal priceMin, decimal priceMax)
+        public async Task<IEnumerable<BookDTO>> GetBooksByPrice(decimal priceMin, decimal priceMax)
         {
-            return await _context.Books
-                .Where(book => book.Price >= priceMin && book.Price <= priceMax)
+            var books = await (from x in _context.Books
+               .Where(book => book.Price >= priceMin && book.Price <= priceMax)
+               select new BookDTO
+               {
+                    Isbn = x.IdBook,
+                    Title = x.Title,
+                    Pages = x.Pages,
+                    Price = x.Price,
+                    PhotoCover = x.PhotoCover,
+                    Discontinued = x.Discontinued,
+                    NameAuthor = x.Author.Name,
+                    NamePublishingHouse = x.PublishingHouse.Name
+               })
                 .ToListAsync();
+            return books;
         }
-        public async Task<IEnumerable<Book>> GetBooksSortedByTitle(bool up)
+        public async Task<IEnumerable<BookDTO>> GetBooksSortedByTitle(bool up)
         {
+            IQueryable<Book> query = _context.Books.Include(x => x.Author).Include(x => x.PublishingHouse);
             if (up)
             {
-                return await _context.Books.OrderBy(x => x.Title).ToListAsync();
+                query = query.OrderBy(x => x.Title);
             }
             else
             {
-                return await _context.Books.OrderByDescending(x => x.Title).ToListAsync();
+                query = query.OrderByDescending(x => x.Title);
             }
+
+            var books = await query
+                .Select(x => new BookDTO
+                {
+                    Isbn = x.IdBook,
+                    Title = x.Title,
+                    Pages = x.Pages,
+                    Price = x.Price,
+                    PhotoCover = x.PhotoCover,
+                    Discontinued = x.Discontinued,
+                    NameAuthor = x.Author.Name,
+                    NamePublishingHouse = x.PublishingHouse.Name
+                })
+                .ToListAsync();
+
+            return books;
         }
-        public async Task<IEnumerable<Book>> GetBooksByTitleContent(string text)
+        public async Task<IEnumerable<BookDTO>> GetBooksByTitleContent(string text)
         {
-            return await _context.Books
-                                 .Where(x => x.Title.Contains(text))
-                                 .ToListAsync();
+            if (string.IsNullOrEmpty(text))
+            {
+                return new List<BookDTO>();
+            }
+
+            var books = await (from x in _context.Books
+                                where x.Title.Contains(text)
+                                select new BookDTO
+                                {
+                                    Isbn = x.IdBook,
+                                    Title = x.Title,
+                                    Pages = x.Pages,
+                                    Price = x.Price,
+                                    PhotoCover = x.PhotoCover,
+                                    Discontinued = x.Discontinued,
+                                    NameAuthor = x.Author.Name,
+                                    NamePublishingHouse = x.PublishingHouse.Name
+                                }).ToListAsync();
+
+            return books;
         }
-        public async Task Add(Book book) =>
-            await _context.Books.AddAsync(book);
+        public async Task Add(BookInsertDTO bookInsertDTO)
+        {
+            var book = new Book
+            {
+                Title = bookInsertDTO.Title,
+                Pages = bookInsertDTO.Pages,
+                Price = bookInsertDTO.Price,
+                Discontinued = bookInsertDTO.Discontinued,
+                PhotoCover = "",
+                PublishingHouseId = (int)bookInsertDTO.PublishingHouseId,
+                AuthorId = (int)bookInsertDTO.AuthorId,
+            };
 
-        public void Delete(Book book) =>
-           _context.Books.Remove(book);
+            if (bookInsertDTO.Photo != null)
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    await bookInsertDTO.Photo.CopyToAsync(memoryStream);
+                    var content = memoryStream.ToArray();
+                    var extension = Path.GetExtension(bookInsertDTO.Photo.FileName);
+                    book.PhotoCover = await _managerFiles.SaveFile(content, extension, "img", bookInsertDTO.Photo.ContentType);
+                }
+            }
 
+            await _context.AddAsync(book);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task Update(BookUpdateDTO bookUpdateDTO)
+        {
+
+            var book = await _context.Books
+                .AsTracking()
+                .FirstOrDefaultAsync(e => e.IdBook == bookUpdateDTO.IdBook);
+
+            if (book == null)
+            {
+                throw new KeyNotFoundException("The book was not found");
+            }
+
+            book.Title = bookUpdateDTO.Title;
+            book.Pages = bookUpdateDTO.Pages;
+            book.Price = bookUpdateDTO.Price;
+            book.Discontinued = bookUpdateDTO.Discontinued;
+            book.PublishingHouseId = (int)bookUpdateDTO.PublishingHouseId;
+            book.AuthorId = (int)bookUpdateDTO.AuthorId;
+
+            if (bookUpdateDTO.Photo != null)
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    await bookUpdateDTO.Photo.CopyToAsync(memoryStream);
+                    var content = memoryStream.ToArray();
+                    var extension = Path.GetExtension(bookUpdateDTO.Photo.FileName);
+                    book.PhotoCover = await _managerFiles.SaveFile(content, extension, "img", bookUpdateDTO.Photo.ContentType);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+        
         public async Task<Book> GetBookById(int id)
         {
             return await _context.Books.FindAsync(id);
         }
-        public async Task DeleteBook(Book book)
+
+        public async Task DeleteBook(BookDTO bookDTO)
         {
+            var book = await _context.Books.FindAsync(bookDTO.Isbn);
+            if (book == null)
+            {
+                throw new KeyNotFoundException("The book was not found");
+            }
             _context.Books.Remove(book);
+            await _managerFiles.DeleteFile(book.PhotoCover, "img");
             await _context.SaveChangesAsync();
         }
 
@@ -106,10 +268,9 @@ namespace Library.Repository
         public IEnumerable<Book> Search(Func<Book, bool> filter) =>
             _context.Books.Where(filter).ToList();
 
-        public void Update(Book book)
+        public async Task<IEnumerable<Book>> GetBooks()
         {
-            _context.Books.Attach(book);
-            _context.Entry(book).State = EntityState.Modified;
+            return await _context.Books.ToListAsync();
         }
 
     }

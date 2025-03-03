@@ -8,8 +8,8 @@ namespace Library.Validators
         public PublishingHouseUpdateValidator()
         {
             RuleFor(x => x.IdPublishingHouse).NotNull().WithMessage("IdPublishingHouse is required");
-            RuleFor(x => x.Name).NotEmpty().WithMessage("Name is required");
-            RuleFor(x => x.Name).Length(2, 20).WithMessage("Name must be between 2 and 20 characters");
+            RuleFor(x => x.NamePublishingHouse).NotEmpty().WithMessage("Name is required");
+            RuleFor(x => x.NamePublishingHouse).Length(2, 20).WithMessage("Name must be between 2 and 20 characters");
         }
     }
 }

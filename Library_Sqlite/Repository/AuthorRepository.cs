@@ -13,25 +13,40 @@ namespace Library.Repository
             _context = context;
         }
 
-        public async Task<IEnumerable<Author>> Get() =>
-            await _context.Authors.ToListAsync();
+        public async Task<IEnumerable<AuthorDTO>> Get()
+        {
+            var authors = await (from x in _context.Authors
+                                 select new AuthorDTO
+                                 {
+                                     IdAuthor = x.IdAuthor,
+                                     NameAuthor = x.Name,
+                                     TotalBooks = x.Books.Count()
+                                 }).ToListAsync();
+            return authors;
+        }
 
-        public async Task<Author> GetById(int id) =>
-            await _context.Authors.FindAsync(id);
+        public async Task<Author> GetById(int id)
+        {
+            return await _context.Authors
+                .Include(a => a.Books)
+                .FirstOrDefaultAsync(a => a.IdAuthor == id);
+        }
 
-        public async Task<IEnumerable<AuthorBookDTO>> GetAuthorsWithDetail()
+        public async Task<IEnumerable<AuthorBookDTO>> GetAuthorsWithDetails()
         {
             return await _context.Authors
                 .Include(a => a.Books)
                 .Select(a => new AuthorBookDTO
                 {
                     IdAuthor = a.IdAuthor,
-                    Name = a.Name,
+                    NameAuthor = a.Name,
                     TotalBooks = a.Books.Count,
                     AveragePrices = a.Books.Any() ? a.Books.Average(l => l.Price) : 0,
                     Books = a.Books.Select(l => new BookItemDTO
                     {
-                        Title = l.Title
+                        IdBook = l.IdBook,
+                        Title = l.Title,
+                        Price = l.Price
                     }).ToList()
                 }).ToListAsync();
         }
@@ -43,37 +58,48 @@ namespace Library.Repository
                 .Select(x => new AuthorBookDTO
                 {
                     IdAuthor = x.IdAuthor,
-                    Name = x.Name,
+                    NameAuthor = x.Name,
                     TotalBooks = x.Books.Count(),
                     AveragePrices = x.Books.Any() ? x.Books.Average(book => (decimal?)book.Price) ?? 0 : 0,
                     Books = x.Books.Select(y => new BookItemDTO
                     {
-                        Title = y.Title
+                        IdBook = y.IdBook,
+                        Title = y.Title,
+                        Price = y.Price
                     }).ToList(),
                 })
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<IEnumerable<Author>> GetAuthorsSortedByName(bool up)
+        public async Task<IEnumerable<AuthorInsertDTO>> GetAuthorsSortedByName(bool up)
         {
             if (up)
             {
-                return await _context.Authors.OrderBy(x => x.Name).ToListAsync();
+                return await _context.Authors
+                    .OrderBy(x => x.Name)
+                    .Select(a => new AuthorInsertDTO { NameAuthor = a.Name })
+                    .ToListAsync();
             }
+
             else
             {
-                return await _context.Authors.OrderByDescending(x => x.Name).ToListAsync();
+                return await _context.Authors
+                    .OrderByDescending(x => x.Name)
+                    .Select(a => new AuthorInsertDTO { NameAuthor = a.Name })
+                    .ToListAsync();
+
             }
         }
 
-        public async Task<IEnumerable<Author>> GetAuthorsByNameContent(string text)
+        public async Task<IEnumerable<AuthorInsertDTO>> GetAuthorsByNameContent(string text)
         {
             return await _context.Authors
                                  .Where(x => x.Name.Contains(text))
+                                 .Select(a => new AuthorInsertDTO { NameAuthor = a.Name })
                                  .ToListAsync();
         }
 
-        public async Task<IEnumerable<Author>> GetAuthorsPaginated(int from, int until)
+        public async Task<IEnumerable<AuthorInsertDTO>> GetAuthorsPaginated(int from, int until)
         {
             if (from < until)
             {
@@ -83,35 +109,46 @@ namespace Library.Repository
             return await _context.Authors
                 .Skip(from - 1)
                 .Take(until - from + 1)
+                .Select(a => new AuthorInsertDTO { NameAuthor = a.Name })
                 .ToListAsync();
         }
-        public async Task Add(Author author) =>
-            await _context.Authors.AddAsync(author);
-
-        public void Update(Author author)
+        public async Task Add(AuthorInsertDTO authorInsertDTO)
         {
-            _context.Authors.Attach(author);
-            _context.Entry(author).State = EntityState.Modified;
+            var author = new Author
+            {
+                Name = authorInsertDTO.NameAuthor
+            };
+
+            _context.Authors.Add(author);
+            await _context.SaveChangesAsync();
+        }
+        public async Task Update(AuthorUpdateDTO authorUpdateDTO)
+        {
+            var author = await _context.Authors
+                .AsTracking()
+                .FirstOrDefaultAsync(e => e.IdAuthor == authorUpdateDTO.IdAuthor);
+
+            if (author != null)
+            {
+                author.Name = authorUpdateDTO.NameAuthor;
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                throw new Exception("Author not found");
+            }
         }
 
         public void Delete(Author author) =>
            _context.Authors.Remove(author);
 
+
         public async Task Save() =>
             await _context.SaveChangesAsync();
 
+
         public IEnumerable<Author> Search(Func<Author, bool> filter) =>
-        _context.Authors.AsQueryable().Where(filter).ToList();
-
-        Task<IEnumerable<Book>> IAuthorRepository.GetAuthorsWithDetails()
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<bool> AuthorExists(int authorId)
-        {
-            throw new NotImplementedException();
-        }
+            _context.Authors.AsQueryable().Where(filter).ToList();
 
     }
 }

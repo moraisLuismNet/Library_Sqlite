@@ -5,12 +5,16 @@ namespace Library.Repository
 {
     public interface IAuthorRepository : IBaseRepository<Author>
     {
-        Task<IEnumerable<Book>> GetAuthorsWithDetails();
+        Task<IEnumerable<AuthorBookDTO>> GetAuthorsWithDetails();
         Task<AuthorBookDTO?> GetAuthorBooksSelect(int id);
-        Task<bool> AuthorExists(int authorId);
-        Task<IEnumerable<Author>> GetAuthorsSortedByName(bool up);
-        Task<IEnumerable<Author>> GetAuthorsByNameContent(string text);
-        Task<IEnumerable<Author>> GetAuthorsPaginated(int from, int until);
+        Task<IEnumerable<AuthorInsertDTO>> GetAuthorsSortedByName(bool up);
+        Task<IEnumerable<AuthorInsertDTO>> GetAuthorsByNameContent(string text);
+        Task<IEnumerable<AuthorInsertDTO>> GetAuthorsPaginated(int from, int until);
+        Task<IEnumerable<AuthorDTO>> Get();
+        Task Add(AuthorInsertDTO authorInsertDTO);
+        Task Update(AuthorUpdateDTO authorUpdateDTO);
+        Task<Author> GetById(int id);
+        void Delete(Author author);
     }
 }
 

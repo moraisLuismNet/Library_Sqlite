@@ -2,6 +2,6 @@
 {
     public class PublishingHouseInsertDTO
     {
-        public string Name { get; set; }
+        public string NamePublishingHouse { get; set; }
     }
 }

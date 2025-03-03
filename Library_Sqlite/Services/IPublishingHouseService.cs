@@ -5,10 +5,11 @@ namespace Library.Services
 {
     public interface IPublishingHouseService : ICommonServiceBase<PublishingHouseDTO, PublishingHouseInsertDTO, PublishingHouseUpdateDTO>
     {
-        Task<PublishingHouseBookDTO> GetPublishingHousesBooksEager(int id);
-        Task<IEnumerable<PublishingHouse>> GetPublishingHousesSortedByName(bool up);
-        Task<IEnumerable<PublishingHouse>> GetPublishingHousesByNameContent(string text);
-        Task<IEnumerable<PublishingHouse>> GetPublishingHousesPaginated(int from, int until);
+        Task<PublishingHouseBookDTO> GetPublishingHouseBooksSelect(int id);
+        Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesSortedByName(bool up);
+        Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesByNameContent(string text);
+        Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesPaginated(int start, int end);
+        Task<PublishingHouseInsertDTO> Add(PublishingHouseInsertDTO publishingHouseInsertDTO);
     }
 }
 

@@ -7,11 +7,11 @@ namespace Library.Services
     {
         Task<IEnumerable<BookSaleDTO>> GetBooksAndPrices();
         Task<IEnumerable<BookGroupDTO>> GetBooksGroupedByDiscontinued();
-        Task<IEnumerable<Book>> GetBooksPaginated(int from, int until);
-        Task<IEnumerable<Book>> GetBooksByPrice(decimal priceMin, decimal priceMax);
-        Task<IEnumerable<Book>> GetBooksSortedByTitle(bool up);
-        Task<IEnumerable<Book>> GetBooksByTitleContent(string text);
+        Task<IEnumerable<BookDTO>> GetBooksPaginated(int start, int end);
+        Task<IEnumerable<BookDTO>> GetBooksByPrice(decimal priceMin, decimal priceMax);
+        Task<IEnumerable<BookDTO>> GetBooksSortedByTitle(bool up);
+        Task<IEnumerable<BookDTO>> GetBooksByTitleContent(string text);
         Task<Book> GetBookById(int id);
-        Task DeleteBook(Book book);
+        Task<BookDTO> Add(BookInsertDTO bookInsertDTO);
     }
 }

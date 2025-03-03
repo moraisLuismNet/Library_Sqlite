@@ -5,11 +5,15 @@ namespace Library.Repository
 {
     public interface IPublishingHouseRepository : IBaseRepository<PublishingHouse>
     {
-        Task<PublishingHouseBookDTO?> GetPublishingHousesBooksEager(int id);
-        Task<bool> PublishingHouseExists(int publishingHouseId);
-        Task<IEnumerable<PublishingHouse>> GetPublishingHousesSortedByName(bool up);
-        Task<IEnumerable<PublishingHouse>> GetPublishingHousesByNameContent(string text);
-        Task<IEnumerable<PublishingHouse>> GetPublishingHousesPaginated(int from, int until);
+        Task<PublishingHouseBookDTO?> GetPublishingHouseBooksSelect(int id);
+        Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesSortedByName(bool up);
+        Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesByNameContent(string text);
+        Task<IEnumerable<PublishingHouseInsertDTO>> GetPublishingHousesPaginated(int from, int until);
+        Task<IEnumerable<PublishingHouseDTO>> Get();
+        Task Add(PublishingHouseInsertDTO publishingHouseInsertDTO);
+        Task Update(PublishingHouseUpdateDTO publishingHouseUpdateDTO);
+        Task<PublishingHouse> GetById(int id);
+        void Delete(PublishingHouse publishingHouse);
     }
 }
 

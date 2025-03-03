@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Library.DTOs;
 using Library.Models;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Library.AutoMappers
 {
@@ -21,6 +22,7 @@ namespace Library.AutoMappers
             CreateMap<Book, BookInsertDTO>().ReverseMap();
             CreateMap<Book, BookItemDTO>().ReverseMap();
             CreateMap<Book, BookUpdateDTO>().ReverseMap();
+            CreateMap<User, UserDTO>().ReverseMap();
         }
     }
 }

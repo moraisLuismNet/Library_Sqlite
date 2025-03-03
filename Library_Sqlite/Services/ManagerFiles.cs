@@ -31,6 +31,12 @@
 
         public async Task<string> SaveFile(byte[] content, string extension, string folder, string contentType)
         {
+            if (string.IsNullOrWhiteSpace(folder))
+                throw new ArgumentNullException(nameof(folder), "Folder path cannot be null or empty.");
+
+            if (string.IsNullOrWhiteSpace(extension))
+                throw new ArgumentNullException(nameof(extension), "File extension cannot be null or empty.");
+
             var fileName = $"{Guid.NewGuid()}{extension}";
             string folderF = Path.Combine(env.WebRootPath, folder);
 
@@ -39,8 +45,8 @@
                 Directory.CreateDirectory(folderF);
             }
 
-            string routa = Path.Combine(folderF, fileName);
-            await File.WriteAllBytesAsync(routa, content);
+            string route = Path.Combine(folderF, fileName);
+            await File.WriteAllBytesAsync(route, content);
 
             var currentUrl = $"{httpContextAccessor.HttpContext.Request.Scheme}://{httpContextAccessor.HttpContext.Request.Host}";
             var urlForBD = Path.Combine(currentUrl, folder, fileName).Replace("\\", "/");

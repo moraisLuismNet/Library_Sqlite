@@ -63,7 +63,7 @@ namespace Library.Controllers
         }
 
         [HttpGet("pagination/{from}/{until}")]
-        public async Task<ActionResult<IEnumerable<Book>>> GetBooksPaginated(int from, int until)
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetBooksPaginated(int from, int until)
         {
             await _actionsService.AddAction("Get books paginated", "Books");
             if (from < until)
@@ -76,7 +76,7 @@ namespace Library.Controllers
         }
 
         [HttpGet("price/{min}/{max}")]
-        public async Task<ActionResult<IEnumerable<Book>>> GetBooksByPrice(decimal min, decimal max)
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetBooksByPrice(decimal min, decimal max)
         {
             await _actionsService.AddAction("Get books with a certain price", "Books");
             if (min > max)
@@ -95,7 +95,7 @@ namespace Library.Controllers
         }
 
         [HttpGet("SortedByTitle/{up}")]
-        public async Task<ActionResult<IEnumerable<Book>>> GetBooksSortedByTitle(bool up)
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetBooksSortedByTitle(bool up)
         {
             await _actionsService.AddAction("Get books sorted by title", "Books");
             var books = await _bookService.GetBooksSortedByTitle(up);
@@ -109,7 +109,7 @@ namespace Library.Controllers
         }
 
         [HttpGet("title/contain/{text}")]
-        public async Task<ActionResult<IEnumerable<Book>>> GetBooksByTitleContain(string text)
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetBooksByTitleContain(string text)
         {
             await _actionsService.AddAction("Get books with the title that contains", "Books");
             if (string.IsNullOrEmpty(text))
@@ -131,6 +131,7 @@ namespace Library.Controllers
         [HttpPost]
         public async Task<ActionResult<BookDTO>> Add([FromForm] BookInsertDTO bookInsertDTO)
         {
+            await _actionsService.AddAction("Add book", "Books");
             if (!_bookService.Validate(bookInsertDTO))
             {
                 return BadRequest(_bookService.Errors);
@@ -145,6 +146,7 @@ namespace Library.Controllers
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromForm] BookUpdateDTO dtoBook)
         {
+            await _actionsService.AddAction("Update book", "Books");
             if (!_bookService.Validate(dtoBook))
             {
                 return BadRequest(_bookService.Errors);
@@ -164,6 +166,7 @@ namespace Library.Controllers
         [HttpDelete("{id:int}")]
         public async Task<ActionResult> Delete([FromRoute] int id)
         {
+            await _actionsService.AddAction("Delete book", "Books");
             var result = await _bookService.Delete(id);
             if (result == null)
             {

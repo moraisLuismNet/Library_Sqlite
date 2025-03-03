@@ -4,19 +4,20 @@ using Library.Services;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Library.Validators;
 
 namespace Library.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class PublishingHouseController : ControllerBase
+    public class PublishingHousesController : ControllerBase
     {
         private IValidator<PublishingHouseInsertDTO> _publishingHouseInsertValidator;
         private IValidator<PublishingHouseUpdateDTO> _publishingHouseUpdateValidator;
         private IPublishingHouseService _publishingHouseService;
         private readonly ActionsService _actionsService;
 
-        public PublishingHouseController(IValidator<PublishingHouseInsertDTO> publishingHouseInsertValidator,
+        public PublishingHousesController(IValidator<PublishingHouseInsertDTO> publishingHouseInsertValidator,
             IValidator<PublishingHouseUpdateDTO> publishingHouseUpdateValidator,
             IPublishingHouseService publishingHouseService,
             ActionsService actionsService)
@@ -27,12 +28,12 @@ namespace Library.Controllers
             _actionsService = actionsService;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<PublishingHouseDTO>>> Get()
+        [HttpGet("withTotalBooks")]
+        public async Task<ActionResult> Get()
         {
-            await _actionsService.AddAction("Get publishing houses", "PublishingHouses");
-            var publishingHouse = await _publishingHouseService.Get();
-            return Ok(publishingHouse);
+            await _actionsService.AddAction("Get publishing houses with total books", "PublishingHouses");
+            var publishingHouses = await _publishingHouseService.Get();
+            return Ok(publishingHouses);
         }
 
         [HttpGet("{id:int}")]
@@ -44,10 +45,10 @@ namespace Library.Controllers
         }
 
         [HttpGet("publishingHouseBooks/{id:int}")]
-        public async Task<ActionResult<PublishingHouseBookDTO>> GetPublishingHousesBooksEager(int id)
+        public async Task<ActionResult<PublishingHouseBookDTO>> GetPublishingHouseBooksSelect(int id)
         {
             await _actionsService.AddAction("Get PublishingHouse with books", "PublishingHouses");
-            var publishingHouse = await _publishingHouseService.GetPublishingHousesBooksEager(id);
+            var publishingHouse = await _publishingHouseService.GetPublishingHouseBooksSelect(id);
 
             if (publishingHouse == null)
             {
@@ -58,7 +59,7 @@ namespace Library.Controllers
         }
 
         [HttpGet("sortedByName/{up}")]
-        public async Task<ActionResult<IEnumerable<PublishingHouse>>> GetPublishingHousesSortedByName(bool up)
+        public async Task<ActionResult<IEnumerable<PublishingHouseInsertDTO>>> GetPublishingHousesSortedByName(bool up)
         {
             await _actionsService.AddAction("Get publishing house sorted by name", "PublishingHouses");
             var publishingHouses = await _publishingHouseService.GetPublishingHousesSortedByName(up);
@@ -72,9 +73,9 @@ namespace Library.Controllers
         }
 
         [HttpGet("name/contain/{text}")]
-        public async Task<ActionResult<IEnumerable<PublishingHouse>>> GetPublishingHousesByNameContain(string text)
+        public async Task<ActionResult<IEnumerable<PublishingHouseInsertDTO>>> GetPublishingHousesByNameContain(string text)
         {
-            await _actionsService.AddAction("Obtener publishing houses with the name it contains", "PublishingHouses");
+            await _actionsService.AddAction("Get publishing houses with the name it contains", "PublishingHouses");
             if (string.IsNullOrEmpty(text))
             {
                 return BadRequest("The search text cannot be empty");
@@ -91,7 +92,7 @@ namespace Library.Controllers
         }
 
         [HttpGet("pagination/{from}/{until}")]
-        public async Task<ActionResult<IEnumerable<PublishingHouse>>> GetPublishingHousesPaginated(int from, int until)
+        public async Task<ActionResult<IEnumerable<PublishingHouseInsertDTO>>> GetPublishingHousesPaginated(int from, int until)
         {
             await _actionsService.AddAction("Get publishing house paginated", "PublishingHouses");
             if (from < until)
@@ -105,48 +106,50 @@ namespace Library.Controllers
 
         [Authorize]
         [HttpPost]
-        public async Task<ActionResult<PublishingHouseDTO>> Add(PublishingHouseInsertDTO publishingHouseInsertDTO)
+        public async Task<ActionResult<PublishingHouseInsertDTO>> Add([FromBody] PublishingHouseInsertDTO publishingHouse)
         {
-            var validationResult = await _publishingHouseInsertValidator.ValidateAsync(publishingHouseInsertDTO);
+            await _actionsService.AddAction("Add publishingHouse", "PublishingHouses");
+            var validationResult = await _publishingHouseInsertValidator.ValidateAsync(publishingHouse);
             if (!validationResult.IsValid)
-            {
-                return BadRequest(validationResult.Errors);
-            }
+                return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
 
-            if (!_publishingHouseService.Validate(publishingHouseInsertDTO))
-            {
-                return BadRequest(_publishingHouseService.Errors);
-            }
-
-            var publishingHouseDTO = await _publishingHouseService.Add(publishingHouseInsertDTO);
-
-            return CreatedAtAction(nameof(GetById), new { id = publishingHouseDTO.IdPublishingHouse }, publishingHouseDTO);
+            var newPublishingHouse = await _publishingHouseService.Add(publishingHouse);
+            return CreatedAtAction(nameof(Get), new { id = newPublishingHouse.NamePublishingHouse }, newPublishingHouse);
         }
 
         [Authorize]
-        [HttpPut("{id:int}")]
-        public async Task<ActionResult<PublishingHouseDTO>> Update(int id, PublishingHouseUpdateDTO publishingHouseUpdateDTO)
+        [HttpPut("{idPublishingHouse:int}")]
+        public async Task<IActionResult> Update(int idPublishingHouse, [FromBody] PublishingHouseUpdateDTO publishingHouse)
         {
-            var validationResult = await _publishingHouseUpdateValidator.ValidateAsync(publishingHouseUpdateDTO);
+            await _actionsService.AddAction("Update publishingHouse", "PublishingHouses");
+            var validationResult = await _publishingHouseUpdateValidator.ValidateAsync(publishingHouse);
             if (!validationResult.IsValid)
+                return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
+            if (!ModelState.IsValid)
             {
-                return BadRequest(validationResult.Errors);
+                return BadRequest(ModelState);
             }
 
-            if (!_publishingHouseService.Validate(publishingHouseUpdateDTO))
+            if (idPublishingHouse != publishingHouse.IdPublishingHouse)
             {
-                return BadRequest(_publishingHouseService.Errors);
+                return BadRequest(new { message = "The route ID does not match the body ID" });
             }
 
-            var publishingHouseDTO = await _publishingHouseService.Update(id, publishingHouseUpdateDTO);
+            var publishingHouseUpdated = await _publishingHouseService.Update(idPublishingHouse, publishingHouse);
 
-            return publishingHouseDTO == null ? NotFound() : Ok(publishingHouseDTO);
+            if (publishingHouseUpdated != null)
+            {
+                return Ok(new { message = "The publishing house has been successfully updated" });
+            }
+
+            return NotFound(new { message = "The publishing house was not found" });
         }
 
         [Authorize]
         [HttpDelete("{id:int}")]
         public async Task<ActionResult<PublishingHouseDTO>> Delete(int id)
         {
+            await _actionsService.AddAction("Delete publishingHouse", "PublishingHouses");
             var publishingHouseDTO = await _publishingHouseService.Delete(id);
             return publishingHouseDTO == null ? NotFound() : Ok(publishingHouseDTO);
         }

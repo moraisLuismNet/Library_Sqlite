@@ -5,24 +5,22 @@ ASP.NET Core Web API Biblioteca
 ![Library](img/2.png)
 
 
+## Program
+``` 
+var connectionString = builder.Configuration.GetConnectionString("Connection");
 
-
+builder.Services.AddDbContext<StoreContext>(options =>
+    options.UseSqlite(connectionString);
+);
+``` 
 
 ## appsetting.Development.json
 ``` 
 {
-    "Logging": {
-        "LogLevel": {
-            "Default": "Information",
-            "Microsoft.AspNetCore": "Warning"
-        }
-    },
-    "EncryptionKey": "",
-    "JWTKey": "",
-    "AllowedHosts": "*",
-    "ConnectionStrings": {
-        "Connection": "Data Source=library.db"
-    }
+  "ConnectionStrings": {
+    "Connection": "Data Source=library.db"
+  }
 }
-
 ``` 
+
+

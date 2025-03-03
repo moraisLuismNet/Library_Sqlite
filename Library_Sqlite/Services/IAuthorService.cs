@@ -7,9 +7,10 @@ namespace Library.Services
     {
         Task<IEnumerable<AuthorBookDTO>> GetAuthorsWithDetails();
         Task<AuthorBookDTO> GetAuthorBooksSelect(int id);
-        Task<IEnumerable<Author>> GetAuthorsSortedByName(bool up);
-        Task<IEnumerable<Author>> GetAuthorsByNameContent(string text);
-        Task<IEnumerable<Author>> GetAuthorsPaginated(int from, int until);
+        Task<IEnumerable<AuthorInsertDTO>> GetAuthorsSortedByName(bool up);
+        Task<IEnumerable<AuthorInsertDTO>> GetAuthorsByNameContent(string text);
+        Task<IEnumerable<AuthorInsertDTO>> GetAuthorsPaginated(int start, int end);
+        Task<AuthorInsertDTO> Add(AuthorInsertDTO authorInsertDTO);
     }
 }
 
