@@ -6,7 +6,7 @@ ASP.NET Core Web API Biblioteca
 
 
 ## Program
-``` 
+```cs 
 var connectionString = builder.Configuration.GetConnectionString("Connection");
 
 builder.Services.AddDbContext<StoreContext>(options =>
@@ -15,12 +15,15 @@ builder.Services.AddDbContext<StoreContext>(options =>
 ``` 
 
 ## appsetting.Development.json
-``` 
+```cs 
 {
   "ConnectionStrings": {
     "Connection": "Data Source=library.db"
   }
 }
 ``` 
+
+[DeepWiki moraisLuismNet/Library_Sqlite](https://deepwiki.com/moraisLuismNet/Library_Sqlite)
+
 
 
